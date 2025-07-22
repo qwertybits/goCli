@@ -25,21 +25,38 @@ func exportToJson(path string, storage []TaskObj) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(path, bytes, os.ModeAppend)
+	err = os.WriteFile(path, bytes, 0644)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+func addTask(id int, content string, storage *[]TaskObj) {
+	*storage = append(*storage, NewTask(id, content))
+}
+
+func printTasks(storage *[]TaskObj) {
+	for _, task := range *storage {
+		fmt.Printf("%v\n", task)
+	}
+}
+
 func Run() {
 
 	tasks := make([]TaskObj, 0) //storage of tasks
 
-	loadFromJson(defaultJsonPath, &tasks)
+	err := loadFromJson(defaultJsonPath, &tasks)
 
-	tasks = append(tasks, NewTask(0, "hello world"))
-	exportToJson(defaultJsonPath, tasks)
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
 
-	fmt.Printf("%v", tasks)
+	printTasks(&tasks)
+
+	err = exportToJson(defaultJsonPath, tasks)
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+
 }
