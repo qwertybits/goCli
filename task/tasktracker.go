@@ -7,6 +7,20 @@ import (
 	"os"
 )
 
+type CLICommand struct {
+	cmd       string
+	arguments []string
+}
+
+var aviableCommands = map[string]bool{
+	"add":              true,
+	"update":           true,
+	"delete":           true,
+	"mark-in-progress": true,
+	"mark-done":        true,
+	"list":             true,
+}
+
 const defaultJsonPath = "task.json"
 
 func loadTasksFromJson(path string) ([]TaskObj, error) {
@@ -52,10 +66,7 @@ func updateStatus(id int, new string, storage *[]TaskObj) error {
 }
 
 func validateId(id int, storage *[]TaskObj) bool {
-	if id >= len(*storage) || id < 0 {
-		return false
-	}
-	return true
+	return !(id >= len(*storage) || id < 0)
 }
 
 func updateDescription(id int, new string, storage *[]TaskObj) error {
@@ -79,18 +90,37 @@ func deleteTaskById(id int, storage *[]TaskObj) error {
 	return nil
 }
 
-func Run() {
+func getCommand() (CLICommand, error) {
+	args := os.Args
+	if len(args) <= 1 {
+		return CLICommand{}, errors.New("not enough arguments")
+	}
+	if len(args) == 2 {
+		return CLICommand{args[1], make([]string, 0)}, nil
+	}
+	cmdArguments := args[2:]
+	return CLICommand{args[1], cmdArguments}, nil
+}
 
+func valideArgumentCount(input *CLICommand, need int) bool {
+	return len(input.arguments) >= need
+}
+
+func Run() {
 	var tasks, err = loadTasksFromJson(defaultJsonPath)
 	if err != nil {
 		fmt.Printf("loadTaskFromJson: %v", err)
+		return
 	}
 
-	if err := deleteTaskById(0, &tasks); err != nil {
-		fmt.Printf("2: %v", err)
+	command, err := getCommand()
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
 	}
 
-	printTasks(&tasks)
+	value := aviableCommands[command.cmd]
+	fmt.Printf("%v\n%v", value, command)
 
 	if err := exportTasksToJson(defaultJsonPath, tasks); err != nil {
 		fmt.Printf("%v", err)
