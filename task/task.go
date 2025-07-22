@@ -38,7 +38,8 @@ func (t *TaskObj) SetDescription(content string) error {
 
 func (t *TaskObj) SetStatus(status string) error {
 	if status != "todo" && status != "in-progress" && status != "done" {
-		return errors.New("unknow task status")
+		msg := fmt.Sprintf("unknow status: %v", status)
+		return errors.New(msg)
 	}
 	t.update()
 	t.Status = status
@@ -47,5 +48,9 @@ func (t *TaskObj) SetStatus(status string) error {
 
 func (t TaskObj) String() string {
 	return fmt.Sprintf(printFormat, t.Id, t.Description, t.Status,
-		t.CreatedAt.Format("2006-01-02 15:04:20"), t.UpdatedAt.Format("2006-01-02 15:04:20"))
+		t.CreatedAt.Format("2006-01-02 15:04"), t.UpdatedAt.Format("2006-01-02 15:04"))
+}
+
+func (t *TaskObj) SetId(id int) {
+	t.Id = id
 }

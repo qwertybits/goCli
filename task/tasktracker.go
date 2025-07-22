@@ -2,25 +2,27 @@ package task
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 )
 
 const defaultJsonPath = "task.json"
 
-func loadFromJson(path string, storage *[]TaskObj) error {
+func loadTasksFromJson(path string) ([]TaskObj, error) {
+	var result = make([]TaskObj, 0)
 	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return result, err
 	}
-	err = json.Unmarshal(bytes, storage)
+	err = json.Unmarshal(bytes, &result)
 	if err != nil {
-		return err
+		return result, err
 	}
-	return nil
+	return result, nil
 }
 
-func exportToJson(path string, storage []TaskObj) error {
+func exportTasksToJson(path string, storage []TaskObj) error {
 	bytes, err := json.MarshalIndent(storage, "", "\t")
 	if err != nil {
 		return err
@@ -32,8 +34,8 @@ func exportToJson(path string, storage []TaskObj) error {
 	return nil
 }
 
-func addTask(id int, content string, storage *[]TaskObj) {
-	*storage = append(*storage, NewTask(id, content))
+func addTask(content string, storage *[]TaskObj) {
+	*storage = append(*storage, NewTask(len(*storage), content))
 }
 
 func printTasks(storage *[]TaskObj) {
@@ -42,21 +44,55 @@ func printTasks(storage *[]TaskObj) {
 	}
 }
 
+func updateStatus(id int, new string, storage *[]TaskObj) error {
+	if !validateId(id, storage) {
+		return errors.New("id range out")
+	}
+	return (*storage)[id].SetStatus(new)
+}
+
+func validateId(id int, storage *[]TaskObj) bool {
+	if id >= len(*storage) || id < 0 {
+		return false
+	}
+	return true
+}
+
+func updateDescription(id int, new string, storage *[]TaskObj) error {
+	if !validateId(id, storage) {
+		return errors.New("id range out")
+	}
+	return (*storage)[id].SetDescription(new)
+}
+
+func deleteTaskById(id int, storage *[]TaskObj) error {
+
+	if !validateId(id, storage) {
+		return errors.New("id range out")
+	}
+
+	for i := id; i < len(*storage)-1; i++ {
+		(*storage)[i] = (*storage)[i+1]
+		(*storage)[i].SetId(i)
+	}
+	(*storage) = (*storage)[:len((*storage))-1]
+	return nil
+}
+
 func Run() {
 
-	tasks := make([]TaskObj, 0) //storage of tasks
-
-	err := loadFromJson(defaultJsonPath, &tasks)
-
+	var tasks, err = loadTasksFromJson(defaultJsonPath)
 	if err != nil {
-		fmt.Printf("%v", err)
+		fmt.Printf("loadTaskFromJson: %v", err)
+	}
+
+	if err := deleteTaskById(0, &tasks); err != nil {
+		fmt.Printf("2: %v", err)
 	}
 
 	printTasks(&tasks)
 
-	err = exportToJson(defaultJsonPath, tasks)
-	if err != nil {
+	if err := exportTasksToJson(defaultJsonPath, tasks); err != nil {
 		fmt.Printf("%v", err)
 	}
-
 }
