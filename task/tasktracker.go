@@ -44,8 +44,24 @@ func addTask(input CLICommand, storage *[]TaskObj) error {
 }
 
 func printTasks(input CLICommand, storage *[]TaskObj) error {
+	filter := ANY_STATUS
+	if valideArgumentCount(&input, 1) {
+		newFilter, exist := strToStatus[input.arguments[0]]
+		if !exist {
+			return errors.New("list: unknow status")
+		}
+		filter = newFilter
+	}
+	var atLeastOne = false
 	for _, task := range *storage {
-		fmt.Printf("%v\n", task)
+		if task.IsSameStatus(filter) {
+			atLeastOne = true
+			fmt.Printf("%v\n\n", task)
+		}
+	}
+
+	if !atLeastOne {
+		fmt.Printf("No tasks\n")
 	}
 	return nil
 }
@@ -56,15 +72,20 @@ func updateStatus(input CLICommand, storage *[]TaskObj) error {
 		return errors.New("updateStatus: not enough arguments")
 	}
 
+	newStatus, exist := strToStatus[input.arguments[0]]
+	if !exist {
+		return errors.New("updateStatus: invalid status")
+	}
+
 	id, err := strconv.Atoi(input.arguments[1])
-	new := input.arguments[0]
 	if err != nil {
 		return errors.New("updateStatus: invalid id")
 	}
 	if !validateId(id, storage) {
 		return errors.New("id range out")
 	}
-	return (*storage)[id].SetStatus(new)
+	(*storage)[id].SetStatus(newStatus)
+	return nil
 }
 
 func updateDescription(input CLICommand, storage *[]TaskObj) error {
@@ -73,8 +94,8 @@ func updateDescription(input CLICommand, storage *[]TaskObj) error {
 		return errors.New("updateDescription: not enough arguments")
 	}
 
-	id, err := strconv.Atoi(input.arguments[1])
-	new := input.arguments[0]
+	id, err := strconv.Atoi(input.arguments[0])
+	new := input.arguments[1]
 
 	if err != nil {
 		return errors.New("updateDescription: invalid id")
@@ -125,13 +146,17 @@ func validateId(id int, storage *[]TaskObj) bool {
 }
 
 var availableCommands = map[string]func(CLICommand, *[]TaskObj) error{
-	"add":              addTask,
-	"update":           updateDescription,
-	"delete":           deleteTaskById,
-	"mark-in-progress": updateStatus,
-	"mark-done":        updateStatus,
-	"mark-todo":        updateStatus,
-	"list":             printTasks,
+	"add":    addTask,
+	"update": updateDescription,
+	"delete": deleteTaskById,
+	"mark":   updateStatus,
+	"list":   printTasks,
+}
+
+var strToStatus = map[string]StatusType{
+	"done":        DONE_STATUS,
+	"todo":        TODO_STATUS,
+	"in-progress": IN_PROGRESS_STATUS,
 }
 
 type CLICommand struct {
@@ -147,6 +172,7 @@ func Run() {
 		fmt.Printf("loadTaskFromJson: %v", err)
 		return
 	}
+
 	defer func() {
 		if err := exportTasksToJson(defaultJsonPath, tasks); err != nil {
 			fmt.Printf("%v", err)
@@ -159,8 +185,13 @@ func Run() {
 		return
 	}
 
-	run := availableCommands[command.cmd]
-	if err := run(command, &tasks); err != nil {
+	exec, exist := availableCommands[command.cmd]
+	if !exist {
+		fmt.Printf("Unknow command")
+		return
+	}
+
+	if err := exec(command, &tasks); err != nil {
 		fmt.Printf("%v", err)
 	}
 }

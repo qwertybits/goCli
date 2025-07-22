@@ -6,18 +6,39 @@ import (
 	"time"
 )
 
+type StatusType int
+
+const (
+	ANY_STATUS StatusType = iota
+	DONE_STATUS
+	TODO_STATUS
+	IN_PROGRESS_STATUS
+)
+
+func (s StatusType) String() string {
+	switch s {
+	case DONE_STATUS:
+		return "done"
+	case TODO_STATUS:
+		return "todo"
+	case IN_PROGRESS_STATUS:
+		return "in-progress"
+	}
+	return "any"
+}
+
 const printFormat string = "%v: %v | %v\nCreated: %v\tUpdated: %v" //id, content, status, cdate, udate
 
 type TaskObj struct {
-	Id          int       `json:"id"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	Id          int        `json:"id"`
+	Description string     `json:"description"`
+	Status      StatusType `json:"status"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
 }
 
 func NewTask(id int, content string) TaskObj {
-	status := "todo"
+	status := TODO_STATUS
 	createdAt := time.Now()
 	updatedAt := createdAt
 	return TaskObj{id, content, status, createdAt, updatedAt}
@@ -36,14 +57,20 @@ func (t *TaskObj) SetDescription(content string) error {
 	return nil
 }
 
-func (t *TaskObj) SetStatus(status string) error {
-	if status != "todo" && status != "in-progress" && status != "done" {
-		msg := fmt.Sprintf("unknow status: %v", status)
-		return errors.New(msg)
-	}
+func (t *TaskObj) SetStatus(status StatusType) {
 	t.update()
 	t.Status = status
-	return nil
+}
+
+func (t TaskObj) GetStatus() StatusType {
+	return t.Status
+}
+
+func (t TaskObj) IsSameStatus(s StatusType) bool {
+	if s == ANY_STATUS {
+		return true
+	}
+	return t.GetStatus() == s
 }
 
 func (t TaskObj) String() string {
