@@ -4,17 +4,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 )
 
 func loadTasksFromJson(path string) ([]TaskObj, error) {
 	var result = make([]TaskObj, 0)
-	bytes, err := os.ReadFile(path)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return result, err
 	}
-	err = json.Unmarshal(bytes, &result)
+	defer file.Close()
+
+	buffer := make([]byte, 1024)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return result, err
+	}
+	err = json.Unmarshal(buffer[:n], &result)
 	if err != nil {
 		return result, err
 	}
@@ -59,7 +67,6 @@ func printTasks(input CLICommand, storage *[]TaskObj) error {
 			fmt.Printf("%v\n\n", task)
 		}
 	}
-
 	if !atLeastOne {
 		fmt.Printf("No tasks\n")
 	}
@@ -169,7 +176,7 @@ const defaultJsonPath = "task.json"
 func Run() {
 	tasks, err := loadTasksFromJson(defaultJsonPath)
 	if err != nil {
-		fmt.Printf("loadTaskFromJson: %v", err)
+		fmt.Printf("Empty task storage: %v", err)
 		return
 	}
 
