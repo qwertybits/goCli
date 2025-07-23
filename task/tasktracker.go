@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 )
@@ -16,29 +15,19 @@ func loadTasksFromJson(path string) ([]TaskObj, error) {
 		return result, err
 	}
 	defer file.Close()
-
-	buffer := make([]byte, 1024)
-	n, err := file.Read(buffer)
-	if err != nil && err != io.EOF {
-		return result, err
-	}
-	err = json.Unmarshal(buffer[:n], &result)
-	if err != nil {
-		return result, err
-	}
-	return result, nil
+	err = json.NewDecoder(file).Decode(&result)
+	return result, err
 }
 
 func exportTasksToJson(path string, storage []TaskObj) error {
-	bytes, err := json.MarshalIndent(storage, "", "\t")
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(path, bytes, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "\t")
+	err = encoder.Encode(storage)
+	return err
 }
 
 func addTask(input CLICommand, storage *[]TaskObj) error {
@@ -54,7 +43,7 @@ func addTask(input CLICommand, storage *[]TaskObj) error {
 func printTasks(input CLICommand, storage *[]TaskObj) error {
 	filter := ANY_STATUS
 	if valideArgumentCount(&input, 1) {
-		newFilter, exist := strToStatus[input.arguments[0]]
+		newFilter, exist := stringToStatus[input.arguments[0]]
 		if !exist {
 			return errors.New("list: unknow status")
 		}
@@ -79,7 +68,7 @@ func updateStatus(input CLICommand, storage *[]TaskObj) error {
 		return errors.New("updateStatus: not enough arguments")
 	}
 
-	newStatus, exist := strToStatus[input.arguments[0]]
+	newStatus, exist := stringToStatus[input.arguments[0]]
 	if !exist {
 		return errors.New("updateStatus: invalid status")
 	}
@@ -132,16 +121,16 @@ func deleteTaskById(input CLICommand, storage *[]TaskObj) error {
 	return nil
 }
 
-func getCommand() (CLICommand, error) {
+func getCommand() CLICommand {
 	args := os.Args
 	if len(args) <= 1 {
-		return CLICommand{}, errors.New("not enough arguments")
+		return CLICommand{}
 	}
 	if len(args) == 2 {
-		return CLICommand{args[1], make([]string, 0)}, nil
+		return CLICommand{args[1], make([]string, 0)}
 	}
 	cmdArguments := args[2:]
-	return CLICommand{args[1], cmdArguments}, nil
+	return CLICommand{args[1], cmdArguments}
 }
 
 func valideArgumentCount(input *CLICommand, need int) bool {
@@ -152,15 +141,33 @@ func validateId(id int, storage *[]TaskObj) bool {
 	return !(id >= len(*storage) || id < 0)
 }
 
+func helpCommand(input CLICommand, storage *[]TaskObj) error {
+	fmt.Printf("CLITodo Tracker by ngixx\n\n")
+	format := "%v: %v\n" //name, description
+	for name, description := range helpDescription {
+		fmt.Printf(format, name, description)
+	}
+	return nil
+}
+
 var availableCommands = map[string]func(CLICommand, *[]TaskObj) error{
 	"add":    addTask,
 	"update": updateDescription,
 	"delete": deleteTaskById,
 	"mark":   updateStatus,
 	"list":   printTasks,
+	"help":   helpCommand,
 }
 
-var strToStatus = map[string]StatusType{
+var helpDescription = map[string]string{
+	"add [content]": "creates a new task",
+	"delete [id]":   "deletes tasks by index",
+	"mark [done | in-progress | todo] [index]": "sets the status of the task",
+	"update [index] [content]":                 "updates the description of task",
+	"list [filter]":                            "displays all tasks with a certain status, by default all of them",
+}
+
+var stringToStatus = map[string]StatusType{
 	"done":        DONE_STATUS,
 	"todo":        TODO_STATUS,
 	"in-progress": IN_PROGRESS_STATUS,
@@ -185,15 +192,11 @@ func Run() {
 		}
 	}()
 
-	command, err := getCommand()
-	if err != nil {
-		fmt.Printf("%v", err)
-		return
-	}
+	command := getCommand()
 
 	exec, exist := availableCommands[command.cmd]
 	if !exist {
-		fmt.Printf("Unknow command")
+		fmt.Printf("Unknow command. Enter help to see avialable commands")
 		return
 	}
 
