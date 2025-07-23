@@ -174,10 +174,9 @@ type CLICommand struct {
 const defaultJsonPath = "task.json"
 
 func Run() {
-	tasks, err := loadTasksFromJson(defaultJsonPath)
-	if err != nil {
-		fmt.Printf("Empty task storage: %v", err)
-		return
+	tasks, loadedErr := loadTasksFromJson(defaultJsonPath)
+	if loadedErr != nil {
+		fmt.Printf("Creating new json storage\n")
 	}
 
 	defer func() {
