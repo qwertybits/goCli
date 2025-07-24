@@ -6,12 +6,13 @@ import (
 )
 
 func addCommand(data sjcli.CLIData) error {
-	fmt.Printf("hello world!")
+	some, ok := data.GetInt("price")
+	fmt.Printf("%v\t%v", some, ok)
 	return nil
 }
 
 func main() {
-	cli := sjcli.NewCLIProgramm()
-	cli.CommandHandler("print", addCommand)
-	cli.Run()
+	app := sjcli.NewCLIProgramm()
+	app.CommandHandler("print", addCommand)
+	app.Run()
 }

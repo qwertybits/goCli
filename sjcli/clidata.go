@@ -30,7 +30,6 @@ func (data *CLIData) GetString(flag string) (string, bool) {
 }
 
 func (data *CLIData) GetBool(flag string) (bool, bool) {
-
 	fl, exist := data.flags[flag]
 	if !exist {
 		return false, false
@@ -43,13 +42,10 @@ func (data *CLIData) GetBool(flag string) (bool, bool) {
 }
 
 func (data *CLIData) GetInt(flag string) (int, bool) {
-	fl, exist := data.flags[flag]
-	if !exist {
-		return 0, false
-	}
-	val, ok := fl.(int)
+	ptr, ok := data.flags[flag]
 	if !ok {
 		return 0, false
 	}
-	return val, true
+	castedPtr := ptr.(*int)
+	return *castedPtr, true
 }
